@@ -22,6 +22,7 @@ public class TableRecommendationService {
 
     /**
      * Scores and ranks available tables based on party size, preferences, and zone.
+     * When a zone is selected, matching tables are always ranked above non-matching ones.
      * Returns top recommendations sorted by score descending.
      */
     public List<TableRecommendationDTO> recommend(LocalDateTime dateTime, int partySize,
@@ -45,8 +46,15 @@ public class TableRecommendationService {
             scored.add(toDTO(table, totalScore, 0, reason));
         }
 
-        // Sort by score descending
-        scored.sort(Comparator.comparingInt(TableRecommendationDTO::getScore).reversed());
+        // Sort: zone-matching tables first (when zone selected), then by score descending
+        scored.sort((a, b) -> {
+            if (zone != null) {
+                boolean aMatch = a.getZone() == zone;
+                boolean bMatch = b.getZone() == zone;
+                if (aMatch != bMatch) return aMatch ? -1 : 1;
+            }
+            return Integer.compare(b.getScore(), a.getScore());
+        });
 
         // Assign ranks
         for (int i = 0; i < scored.size(); i++) {
@@ -57,21 +65,21 @@ public class TableRecommendationService {
     }
 
     /**
-     * Capacity score (0-50): exact match = 50, each extra seat costs 10 points.
+     * Capacity score (0-40): exact match = 40, each extra seat costs 10 points.
      */
     int calculateCapacityScore(RestaurantTable table, int partySize) {
         int extra = table.getCapacity() - partySize;
-        int score = 50 - (extra * 10);
+        int score = 40 - (extra * 10);
         return Math.max(score, 0);
     }
 
     /**
-     * Preference score (0-30): normalized as (matched / requested) * 30.
-     * If no preferences requested, returns 15 (neutral).
+     * Preference score (0-25): normalized as (matched / requested) * 25.
+     * If no preferences requested, returns 10 (neutral).
      */
     int calculatePreferenceScore(RestaurantTable table, List<String> preferences) {
         if (preferences == null || preferences.isEmpty()) {
-            return 15;
+            return 10;
         }
 
         int matched = 0;
@@ -89,17 +97,18 @@ public class TableRecommendationService {
             }
         }
 
-        return (int) Math.round((double) matched / preferences.size() * 30);
+        return (int) Math.round((double) matched / preferences.size() * 25);
     }
 
     /**
-     * Zone score (0-20): requested zone match = 20, no filter = 10.
+     * Zone score (0-35): requested zone match = 35, no filter = 10.
+     * Zone is weighted heavily so matching-zone tables always outscore non-matching ones.
      */
     int calculateZoneScore(RestaurantTable table, Zone zone) {
         if (zone == null) {
             return 10;
         }
-        return table.getZone() == zone ? 20 : 0;
+        return table.getZone() == zone ? 35 : 0;
     }
 
     private String buildReason(RestaurantTable table, int partySize, Zone zone, List<String> preferences) {

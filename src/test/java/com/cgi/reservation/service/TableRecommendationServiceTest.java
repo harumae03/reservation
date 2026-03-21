@@ -65,48 +65,48 @@ class TableRecommendationServiceTest {
                 LocalDateTime.now().plusHours(1), 2, 120, null, null);
 
         assertEquals(3, results.size()); // all 3 have capacity >= 2
-        // The 2-seat table should rank first (exact match = 50 capacity score)
+        // The 2-seat table should rank first (exact match = 40 capacity score)
         assertEquals(1, results.get(0).getTableNumber());
         assertTrue(results.get(0).getScore() > results.get(1).getScore());
     }
 
     @Test
     void extraSeats_lowerScore() {
-        // 2-seat table for 2 people = 50 points
+        // 2-seat table for 2 people = 40 points (exact match)
         int exactScore = service.calculateCapacityScore(table2seat, 2);
-        // 4-seat table for 2 people = 50 - 20 = 30 points
+        // 4-seat table for 2 people = 40 - 20 = 20 points
         int extraScore = service.calculateCapacityScore(table4seat, 2);
-        // 8-seat table for 2 people = 50 - 60 = 0 points (clamped)
+        // 8-seat table for 2 people = 40 - 60 = 0 points (clamped)
         int bigExtraScore = service.calculateCapacityScore(table8seat, 2);
 
-        assertEquals(50, exactScore);
-        assertEquals(30, extraScore);
+        assertEquals(40, exactScore);
+        assertEquals(20, extraScore);
         assertEquals(0, bigExtraScore);
     }
 
     @Test
     void normalizedPreferenceScoring() {
-        // Request 1 preference, table has it → 30/30
+        // Request 1 preference, table has it → 25/25
         int score1of1 = service.calculatePreferenceScore(windowTable, List.of("window"));
-        assertEquals(30, score1of1);
+        assertEquals(25, score1of1);
 
-        // Request 2 preferences, table has 1 → 15/30
+        // Request 2 preferences, table has 1 → 13/25 (rounded)
         int score1of2 = service.calculatePreferenceScore(windowTable, List.of("window", "playground"));
-        assertEquals(15, score1of2);
+        assertEquals(13, score1of2);
 
-        // Request 3 preferences, table has 2 → 20/30
+        // Request 3 preferences, table has 2 → 17/25 (rounded)
         int score2of3 = service.calculatePreferenceScore(windowTable, List.of("window", "quiet", "playground"));
-        assertEquals(20, score2of3);
+        assertEquals(17, score2of3);
 
-        // No preferences → neutral 15
+        // No preferences → neutral 10
         int noPrefs = service.calculatePreferenceScore(windowTable, null);
-        assertEquals(15, noPrefs);
+        assertEquals(10, noPrefs);
     }
 
     @Test
     void zoneScoring() {
-        // Matching zone = 20
-        assertEquals(20, service.calculateZoneScore(table2seat, Zone.INDOOR_MAIN));
+        // Matching zone = 35
+        assertEquals(35, service.calculateZoneScore(table2seat, Zone.INDOOR_MAIN));
         // Non-matching zone = 0
         assertEquals(0, service.calculateZoneScore(table2seat, Zone.TERRACE));
         // No zone filter = 10
@@ -133,8 +133,8 @@ class TableRecommendationServiceTest {
                 LocalDateTime.now().plusHours(1), 2, 120,
                 Zone.INDOOR_WINDOW, List.of("window", "quiet"));
 
-        // windowTable should rank first: exact capacity (50) + 2/2 prefs (30) + zone match (20) = 100
-        // table2seat: exact capacity (50) + 0/2 prefs (0) + no zone match (0) = 50
+        // windowTable should rank first: exact capacity (40) + 2/2 prefs (25) + zone match (35) = 100
+        // table2seat: exact capacity (40) + 0/2 prefs (0) + no zone match (0) = 40
         assertEquals(4, results.get(0).getTableNumber());
         assertEquals(100, results.get(0).getScore());
         assertEquals(1, results.get(0).getRank());

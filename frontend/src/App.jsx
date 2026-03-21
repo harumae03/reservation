@@ -1,121 +1,269 @@
-import { useState } from 'react'
-import reactLogo from './assets/react.svg'
-import viteLogo from './assets/vite.svg'
-import heroImg from './assets/hero.png'
-import './App.css'
+import { useState, useEffect, useCallback } from 'react';
+import './App.css';
+import FilterPanel from './components/FilterPanel/FilterPanel.jsx';
+import FloorPlan from './components/FloorPlan/FloorPlan.jsx';
+import RecommendationList from './components/RecommendationList/RecommendationList.jsx';
+import ReservationForm from './components/ReservationForm/ReservationForm.jsx';
+import { fetchTableStatuses, fetchRecommendations, createReservation } from './services/api.js';
 
-function App() {
-  const [count, setCount] = useState(0)
+function getInitialDateTime() {
+  const now = new Date();
+  const hour = now.getHours();
 
-  return (
-    <>
-      <section id="center">
-        <div className="hero">
-          <img src={heroImg} className="base" width="170" height="179" alt="" />
-          <img src={reactLogo} className="framework" alt="React logo" />
-          <img src={viteLogo} className="vite" alt="Vite logo" />
-        </div>
-        <div>
-          <h1>Get started</h1>
-          <p>
-            Edit <code>src/App.jsx</code> and save to test <code>HMR</code>
-          </p>
-        </div>
-        <button
-          className="counter"
-          onClick={() => setCount((count) => count + 1)}
-        >
-          Count is {count}
-        </button>
-      </section>
+  // If restaurant is closed (before 11 or after 22), use next opening time
+  let target;
+  if (hour >= 22 || hour < 11) {
+    target = new Date(now);
+    if (hour >= 22) target.setDate(target.getDate() + 1);
+    target.setHours(11, 0, 0, 0);
+  } else {
+    // Round up to next 30-minute slot
+    target = new Date(now);
+    const minutes = target.getMinutes();
+    if (minutes <= 30) {
+      target.setMinutes(30, 0, 0);
+    } else {
+      target.setHours(target.getHours() + 1, 0, 0, 0);
+    }
+  }
 
-      <div className="ticks"></div>
-
-      <section id="next-steps">
-        <div id="docs">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#documentation-icon"></use>
-          </svg>
-          <h2>Documentation</h2>
-          <p>Your questions, answered</p>
-          <ul>
-            <li>
-              <a href="https://vite.dev/" target="_blank">
-                <img className="logo" src={viteLogo} alt="" />
-                Explore Vite
-              </a>
-            </li>
-            <li>
-              <a href="https://react.dev/" target="_blank">
-                <img className="button-icon" src={reactLogo} alt="" />
-                Learn more
-              </a>
-            </li>
-          </ul>
-        </div>
-        <div id="social">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#social-icon"></use>
-          </svg>
-          <h2>Connect with us</h2>
-          <p>Join the Vite community</p>
-          <ul>
-            <li>
-              <a href="https://github.com/vitejs/vite" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#github-icon"></use>
-                </svg>
-                GitHub
-              </a>
-            </li>
-            <li>
-              <a href="https://chat.vite.dev/" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#discord-icon"></use>
-                </svg>
-                Discord
-              </a>
-            </li>
-            <li>
-              <a href="https://x.com/vite_js" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#x-icon"></use>
-                </svg>
-                X.com
-              </a>
-            </li>
-            <li>
-              <a href="https://bsky.app/profile/vite.dev" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#bluesky-icon"></use>
-                </svg>
-                Bluesky
-              </a>
-            </li>
-          </ul>
-        </div>
-      </section>
-
-      <div className="ticks"></div>
-      <section id="spacer"></section>
-    </>
-  )
+  const date = target.toISOString().split('T')[0];
+  const time = `${String(target.getHours()).padStart(2, '0')}:${String(target.getMinutes()).padStart(2, '0')}`;
+  return { date, time };
 }
 
-export default App
+function App() {
+  const initial = getInitialDateTime();
+
+  const [filters, setFilters] = useState({
+    date: initial.date,
+    time: initial.time,
+    partySize: 2,
+    zone: '',
+    preferences: [],
+    duration: 120,
+  });
+
+  const [tableStatuses, setTableStatuses] = useState([]);
+  const [recommendations, setRecommendations] = useState([]);
+  const [selectedTable, setSelectedTable] = useState(null);
+  const [showForm, setShowForm] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
+  const [toast, setToast] = useState(null);
+
+  const dateTime = `${filters.date}T${filters.time}:00`;
+
+  // Load initial table statuses
+  useEffect(() => {
+    loadTableStatuses();
+  }, []);
+
+  const loadTableStatuses = useCallback(async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const statuses = await fetchTableStatuses(dateTime, filters.duration);
+      setTableStatuses(statuses);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  }, [dateTime, filters.duration]);
+
+  const handleSearch = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      setSelectedTable(null);
+      setRecommendations([]);
+
+      // Load statuses and recommendations in parallel
+      const [statuses, recs] = await Promise.all([
+        fetchTableStatuses(dateTime, filters.duration),
+        fetchRecommendations({
+          dateTime,
+          partySize: filters.partySize,
+          duration: filters.duration,
+          zone: filters.zone || undefined,
+          preferences: filters.preferences.length ? filters.preferences : undefined,
+        }),
+      ]);
+
+      setTableStatuses(statuses);
+      setRecommendations(recs);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleTableClick = (table) => {
+    if (table.status === 'occupied') return;
+    setSelectedTable(table);
+    setShowForm(true);
+  };
+
+  const handleRecommendationClick = (rec) => {
+    // Find matching table in statuses
+    const table = tableStatuses.find(t => t.id === rec.id);
+    if (table) {
+      setSelectedTable({ ...table, status: 'selected' });
+      setShowForm(true);
+    }
+  };
+
+  const handleReservationSubmit = async (formData) => {
+    try {
+      setLoading(true);
+      await createReservation({
+        tableId: selectedTable.id,
+        customerName: formData.customerName,
+        partySize: filters.partySize,
+        dateTime,
+        durationMinutes: filters.duration,
+        preferences: filters.preferences.join(',') || null,
+      });
+
+      setShowForm(false);
+      setSelectedTable(null);
+      setToast('Broneering kinnitatud!');
+      setTimeout(() => setToast(null), 3000);
+
+      // Refresh floor plan
+      await handleSearch();
+    } catch (err) {
+      throw err; // Let the form handle the error display
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Build map of recommended table IDs -> rank for highlighting
+  const recommendedMap = new Map(recommendations.map(r => [r.id, r.rank]));
+
+  // Merge statuses with recommendation/selection info (including rank)
+  const tablesWithVisualStatus = tableStatuses.map(t => {
+    if (selectedTable?.id === t.id) return { ...t, status: 'selected' };
+    if (t.status === 'available' && recommendedMap.has(t.id)) {
+      return { ...t, status: 'recommended', rank: recommendedMap.get(t.id) };
+    }
+    return t;
+  });
+
+  return (
+    <div className="app-layout">
+      {/* Header */}
+      <header className="app-header">
+        <div className="app-header-inner">
+          <div className="app-logo">Verdant Bistro</div>
+          <nav className="app-nav">
+            <a href="#" className="active">Broneerimine</a>
+          </nav>
+        </div>
+      </header>
+
+      {/* Filter Sidebar */}
+      <FilterPanel
+        filters={filters}
+        onChange={setFilters}
+        onSearch={handleSearch}
+        loading={loading}
+      />
+
+      {/* Main: Floor Plan */}
+      <main className="main-content">
+        <div className="floor-plan-header">
+          <div>
+            <h1>Saali plaan</h1>
+            <p>Vali sobiv laud restorani plaanilt</p>
+          </div>
+          <div className="legend">
+            <div className="legend-item">
+              <span className="legend-dot legend-dot--available" /> Saadaval
+            </div>
+            <div className="legend-item">
+              <span className="legend-dot legend-dot--occupied" /> Hõivatud
+            </div>
+            {recommendations.length > 0 && (
+              <>
+                <div className="legend-item">
+                  <span className="legend-dot legend-dot--recommended" /> Sobivaimad
+                </div>
+                <div className="legend-item">
+                  <span className="legend-dot legend-dot--other" /> Teised soovitused
+                </div>
+              </>
+            )}
+            {selectedTable && (
+              <div className="legend-item">
+                <span className="legend-dot legend-dot--selected" /> Valitud
+              </div>
+            )}
+          </div>
+        </div>
+
+        {error && <div className="error-message">{error}</div>}
+
+        {loading && tableStatuses.length === 0 ? (
+          <div className="loading-spinner">
+            <span className="material-symbols-outlined">progress_activity</span>
+            Laen saali plaani...
+          </div>
+        ) : (
+          <FloorPlan
+            tables={tablesWithVisualStatus}
+            onTableClick={handleTableClick}
+          />
+        )}
+
+        {selectedTable && !showForm && (
+          <div className="status-bar">
+            <div className="status-bar-icon">
+              <span className="material-symbols-outlined">info</span>
+            </div>
+            <div>
+              <p className="title">Laud {selectedTable.tableNumber} valitud</p>
+              <p className="desc">{selectedTable.capacity} kohta &middot; {selectedTable.zone}</p>
+            </div>
+          </div>
+        )}
+      </main>
+
+      {/* Right Sidebar: Recommendations */}
+      <aside className="recommendations-panel">
+        <h3>Soovitused</h3>
+        {recommendations.length > 0 ? (
+          <RecommendationList
+            recommendations={recommendations}
+            onSelect={handleRecommendationClick}
+          />
+        ) : (
+          <div className="empty-state">
+            <p>Kasuta filtreid ja vajuta &laquo;Otsi laudu&raquo;, et näha soovitusi</p>
+          </div>
+        )}
+      </aside>
+
+      {/* Reservation Form Modal */}
+      {showForm && selectedTable && (
+        <ReservationForm
+          table={selectedTable}
+          filters={filters}
+          onSubmit={handleReservationSubmit}
+          onClose={() => {
+            setShowForm(false);
+            setSelectedTable(null);
+          }}
+        />
+      )}
+
+      {/* Toast */}
+      {toast && <div className="toast">{toast}</div>}
+    </div>
+  );
+}
+
+export default App;
