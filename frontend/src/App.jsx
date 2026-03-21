@@ -4,6 +4,7 @@ import FilterPanel from './components/FilterPanel/FilterPanel.jsx';
 import FloorPlan from './components/FloorPlan/FloorPlan.jsx';
 import RecommendationList from './components/RecommendationList/RecommendationList.jsx';
 import ReservationForm from './components/ReservationForm/ReservationForm.jsx';
+import DailySpecials from './components/DailySpecials/DailySpecials.jsx';
 import { fetchTableStatuses, fetchRecommendations, createReservation } from './services/api.js';
 
 function getInitialDateTime() {
@@ -245,6 +246,7 @@ function App() {
             <p>Kasuta filtreid ja vajuta &laquo;Otsi laudu&raquo;, et näha soovitusi</p>
           </div>
         )}
+        <DailySpecials />
       </aside>
 
       {/* Reservation Form Modal */}

@@ -1,6 +1,6 @@
 const STATUS_COLORS = {
-  available: { fill: '#e8eee9', stroke: '#a0b0a3', text: '#4a5a4e', chair: '#d0ddd2', chairStroke: '#a0b0a3' },
-  occupied: { fill: '#e8e8e8', stroke: '#b0b0b0', text: '#888', chair: '#d5d5d5', chairStroke: '#b0b0b0' },
+  available: { fill: '#dce8de', stroke: '#8fa893', text: '#3d4f42', chair: '#c5d6c8', chairStroke: '#8fa893' },
+  occupied: { fill: '#f0d9d4', stroke: '#c4978e', text: '#9a6e65', chair: '#e6c5be', chairStroke: '#c4978e' },
   recommended_top: { fill: '#4caf50', stroke: '#2e7d32', text: '#fff', chair: '#66bb6a', chairStroke: '#2e7d32' },
   recommended: { fill: '#ffddb6', stroke: '#e6a54a', text: '#5d4037', chair: '#ffe0b2', chairStroke: '#e6a54a' },
   selected: { fill: '#516356', stroke: '#324338', text: '#eafeed', chair: '#738678', chairStroke: '#324338' },
@@ -22,7 +22,7 @@ export default function TableShape({ table, onClick }) {
   return (
     <g
       onClick={isClickable ? onClick : undefined}
-      style={{ cursor: isClickable ? 'pointer' : 'default', opacity: isOccupied ? 0.5 : 1 }}
+      style={{ cursor: isClickable ? 'pointer' : 'default', opacity: isOccupied ? 0.7 : 1 }}
       role={isClickable ? 'button' : undefined}
       tabIndex={isClickable ? 0 : undefined}
     >

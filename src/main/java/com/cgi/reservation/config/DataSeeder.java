@@ -42,53 +42,53 @@ public class DataSeeder implements CommandLineRunner {
 
         // === TERRACE (4 tables, top row) ===
         tableRepository.save(new RestaurantTable(1, 2, Zone.TERRACE,
-                120, 40, 70, 70, false, false, false));
+                100, 50, 65, 65, false, false, false));
         tableRepository.save(new RestaurantTable(2, 4, Zone.TERRACE,
-                320, 40, 80, 80, false, false, false));
+                330, 45, 75, 75, false, false, false));
         tableRepository.save(new RestaurantTable(3, 4, Zone.TERRACE,
-                530, 40, 80, 80, false, false, false));
+                560, 45, 75, 75, false, false, false));
         tableRepository.save(new RestaurantTable(4, 2, Zone.TERRACE,
-                740, 40, 70, 70, false, false, false));
+                790, 50, 65, 65, false, false, false));
 
         // === INDOOR WINDOW — left side (3 tables) ===
         tableRepository.save(new RestaurantTable(5, 2, Zone.INDOOR_WINDOW,
-                60, 190, 70, 70, true, false, false));
+                65, 210, 65, 65, true, false, false));
         tableRepository.save(new RestaurantTable(6, 2, Zone.INDOOR_WINDOW,
-                60, 290, 70, 70, true, false, false));
+                65, 330, 65, 65, true, false, false));
         tableRepository.save(new RestaurantTable(7, 4, Zone.INDOOR_WINDOW,
-                60, 390, 80, 80, true, false, false));
+                65, 450, 75, 75, true, false, false));
 
-        // === INDOOR MAIN — center (6 tables) ===
+        // === INDOOR MAIN — center (6 tables, 2 rows with more spacing) ===
         tableRepository.save(new RestaurantTable(8, 4, Zone.INDOOR_MAIN,
-                250, 200, 80, 80, false, false, false));
+                260, 220, 75, 75, false, false, false));
         tableRepository.save(new RestaurantTable(9, 6, Zone.INDOOR_MAIN,
-                430, 200, 100, 80, false, false, false));
+                460, 215, 95, 75, false, false, false));
         tableRepository.save(new RestaurantTable(10, 4, Zone.INDOOR_MAIN,
-                650, 200, 80, 80, false, false, false));
+                680, 220, 75, 75, false, false, false));
         tableRepository.save(new RestaurantTable(11, 2, Zone.INDOOR_MAIN,
-                250, 340, 70, 70, false, false, false));
+                270, 380, 65, 65, false, false, false));
         tableRepository.save(new RestaurantTable(12, 8, Zone.INDOOR_MAIN,
-                430, 340, 120, 80, false, false, false));
+                450, 370, 110, 75, false, false, false));
         tableRepository.save(new RestaurantTable(13, 4, Zone.INDOOR_MAIN,
-                650, 340, 80, 80, false, false, false));
+                690, 380, 75, 75, false, false, false));
 
         // === INDOOR WINDOW — right side (2 tables) ===
         tableRepository.save(new RestaurantTable(14, 2, Zone.INDOOR_WINDOW,
-                850, 200, 70, 70, true, false, false));
+                890, 220, 65, 65, true, false, false));
         tableRepository.save(new RestaurantTable(15, 4, Zone.INDOOR_WINDOW,
-                850, 320, 80, 80, true, false, false));
+                885, 370, 75, 75, true, false, false));
 
         // === PRIVATE ROOM — bottom right (3 tables) ===
         tableRepository.save(new RestaurantTable(16, 6, Zone.PRIVATE_ROOM,
-                620, 470, 100, 80, false, true, false));
+                640, 540, 95, 75, false, true, false));
         tableRepository.save(new RestaurantTable(17, 8, Zone.PRIVATE_ROOM,
-                780, 470, 120, 80, false, true, false));
+                820, 535, 110, 75, false, true, false));
         tableRepository.save(new RestaurantTable(18, 4, Zone.PRIVATE_ROOM,
-                620, 560, 80, 70, false, true, false));
+                660, 650, 75, 65, false, true, false));
 
         // === Near playground — bottom left (1 table) ===
         tableRepository.save(new RestaurantTable(19, 4, Zone.INDOOR_MAIN,
-                150, 470, 80, 80, false, false, true));
+                170, 540, 75, 75, false, false, true));
 
         log.info("Seeded {} restaurant tables", tableRepository.count());
     }

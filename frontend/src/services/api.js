@@ -63,6 +63,16 @@ export async function cancelReservation(id) {
   if (!res.ok) throw await buildError(res);
 }
 
+/**
+ * Fetches daily meal specials from TheMealDB.
+ * @returns {Promise<{name: string, category: string, area: string, imageUrl: string}[]>}
+ */
+export async function fetchDailySpecials() {
+  const res = await fetch(`${API_BASE}/daily-specials`);
+  if (!res.ok) return [];
+  return res.json();
+}
+
 async function buildError(res) {
   try {
     const body = await res.json();
