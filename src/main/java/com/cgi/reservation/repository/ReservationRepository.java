@@ -14,20 +14,22 @@ import java.util.List;
 @Repository
 public interface ReservationRepository extends JpaRepository<Reservation, Long> {
 
-    @Query("SELECT r FROM Reservation r WHERE r.status = :status " +
-           "AND r.startTime < :endTime " +
-           "AND FUNCTION('DATEADD', 'MINUTE', r.durationMinutes, r.startTime) > :startTime")
+    @Query(value = "SELECT r.* FROM reservation r WHERE r.status = :status " +
+           "AND r.start_time < :endTime " +
+           "AND DATEADD('MINUTE', r.duration_minutes, r.start_time) > :startTime",
+           nativeQuery = true)
     List<Reservation> findOverlapping(
             @Param("startTime") LocalDateTime startTime,
             @Param("endTime") LocalDateTime endTime,
-            @Param("status") ReservationStatus status);
+            @Param("status") String status);
 
-    @Query("SELECT r FROM Reservation r WHERE r.table = :table " +
+    @Query(value = "SELECT r.* FROM reservation r WHERE r.table_id = :tableId " +
            "AND r.status = 'CONFIRMED' " +
-           "AND r.startTime < :endTime " +
-           "AND FUNCTION('DATEADD', 'MINUTE', r.durationMinutes, r.startTime) > :startTime")
+           "AND r.start_time < :endTime " +
+           "AND DATEADD('MINUTE', r.duration_minutes, r.start_time) > :startTime",
+           nativeQuery = true)
     List<Reservation> findOverlappingForTable(
-            @Param("table") RestaurantTable table,
+            @Param("tableId") Long tableId,
             @Param("startTime") LocalDateTime startTime,
             @Param("endTime") LocalDateTime endTime);
 

@@ -54,7 +54,7 @@ public class ReservationService {
         LocalDateTime start = request.getDateTime();
         LocalDateTime end = start.plusMinutes(request.getDurationMinutes());
 
-        List<Reservation> overlapping = reservationRepository.findOverlappingForTable(table, start, end);
+        List<Reservation> overlapping = reservationRepository.findOverlappingForTable(table.getId(), start, end);
         if (!overlapping.isEmpty()) {
             throw new IllegalStateException("Laud on juba broneeritud valitud ajal");
         }

@@ -31,7 +31,7 @@ public class AvailabilityService {
     public List<RestaurantTable> getAvailableTables(LocalDateTime start, int durationMinutes) {
         LocalDateTime end = start.plusMinutes(durationMinutes);
         List<Reservation> overlapping = reservationRepository.findOverlapping(
-                start, end, ReservationStatus.CONFIRMED);
+                start, end, ReservationStatus.CONFIRMED.name());
 
         Set<Long> occupiedTableIds = overlapping.stream()
                 .map(r -> r.getTable().getId())
@@ -49,7 +49,7 @@ public class AvailabilityService {
     public List<TableWithStatusDTO> getTableStatuses(LocalDateTime dateTime, int durationMinutes) {
         LocalDateTime end = dateTime.plusMinutes(durationMinutes);
         List<Reservation> overlapping = reservationRepository.findOverlapping(
-                dateTime, end, ReservationStatus.CONFIRMED);
+                dateTime, end, ReservationStatus.CONFIRMED.name());
 
         Set<Long> occupiedTableIds = overlapping.stream()
                 .map(r -> r.getTable().getId())

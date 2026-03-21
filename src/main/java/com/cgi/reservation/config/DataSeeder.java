@@ -121,17 +121,36 @@ public class DataSeeder implements CommandLineRunner {
             // Skip if this table already has an overlapping reservation
             LocalDateTime endTime = startTime.plusMinutes(duration);
             List<Reservation> overlapping = reservationRepository.findOverlappingForTable(
-                    table, startTime, endTime);
+                    table.getId(), startTime, endTime);
             if (!overlapping.isEmpty()) {
                 continue;
             }
 
             String name = names[random.nextInt(names.length)];
+            String preferences = generateRandomPreferences(random);
             Reservation reservation = new Reservation(
-                    table, name, partySize, startTime, duration, null);
+                    table, name, partySize, startTime, duration, preferences);
             reservationRepository.save(reservation);
         }
 
         log.info("Seeded {} random reservations", reservationRepository.count());
+    }
+
+    private String generateRandomPreferences(Random random) {
+        String[] options = {"window", "quiet", "playground"};
+        int chance = random.nextInt(10);
+        if (chance < 4) {
+            // 40% — no preferences
+            return null;
+        } else if (chance < 7) {
+            // 30% — one preference
+            return options[random.nextInt(options.length)];
+        } else {
+            // 30% — two preferences
+            int first = random.nextInt(options.length);
+            int second;
+            do { second = random.nextInt(options.length); } while (second == first);
+            return options[first] + "," + options[second];
+        }
     }
 }
