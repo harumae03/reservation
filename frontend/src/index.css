@@ -99,15 +99,33 @@ body {
   min-height: 100vh;
 }
 
+/* Mobile filter toggle — hidden on desktop */
+.mobile-filter-toggle {
+  display: none;
+  background: none;
+  border: none;
+  color: var(--primary);
+  cursor: pointer;
+  padding: 0.25rem;
+}
+
+.filter-sidebar-wrapper {
+  display: contents;
+}
+
 @media (max-width: 1200px) {
   .app-layout {
     grid-template-columns: 200px 1fr;
     grid-template-areas:
       "header header"
-      "sidebar main";
+      "sidebar main"
+      "sidebar aside";
   }
   .recommendations-panel {
-    display: none;
+    border-left: none;
+    border-top: 1px solid rgba(171, 180, 171, 0.15);
+    position: static;
+    height: auto;
   }
 }
 
@@ -116,8 +134,49 @@ body {
     grid-template-columns: 1fr;
     grid-template-areas:
       "header"
-      "sidebar"
-      "main";
+      "main"
+      "aside";
+  }
+
+  .mobile-filter-toggle {
+    display: block;
+  }
+
+  .filter-sidebar-wrapper {
+    display: none;
+  }
+  .filter-sidebar-wrapper.open {
+    display: contents;
+  }
+  .filter-sidebar-wrapper.open .filter-sidebar {
+    position: fixed;
+    inset: 60px 0 0;
+    z-index: 50;
+    height: auto;
+    overflow-y: auto;
+    border-right: none;
+    box-shadow: var(--shadow-xl);
+  }
+
+  .main-content {
+    padding: 1rem;
+  }
+
+  .recommendations-panel {
+    border-left: none;
+    border-top: 1px solid rgba(171, 180, 171, 0.15);
+    position: static;
+    height: auto;
+  }
+
+  .floor-plan-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.75rem;
+  }
+
+  .legend {
+    flex-wrap: wrap;
   }
 }
 
@@ -932,6 +991,20 @@ body {
   padding: 2rem;
   color: var(--on-surface-variant);
   font-size: 0.875rem;
+}
+
+.empty-state--no-results .material-symbols-outlined {
+  font-size: 2.5rem;
+  color: var(--on-surface-variant);
+  opacity: 0.5;
+  display: block;
+  margin-bottom: 0.5rem;
+}
+
+.empty-state-hint {
+  font-size: 0.75rem;
+  opacity: 0.7;
+  margin-top: 0.25rem;
 }
 
 /* Pulse animation for recommended tables */

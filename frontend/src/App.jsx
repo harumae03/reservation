@@ -57,6 +57,8 @@ function App() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [toast, setToast] = useState(null);
+  const [filtersOpen, setFiltersOpen] = useState(false);
+  const [searched, setSearched] = useState(false);
 
   const dateTime = `${filters.date}T${filters.time}:00`;
 
@@ -99,6 +101,7 @@ function App() {
 
       setTableStatuses(statuses);
       setRecommendations(recs);
+      setSearched(true);
     } catch (err) {
       setError(err.message);
     } finally {
@@ -167,17 +170,25 @@ function App() {
           <div className="app-logo">Verdant Bistro</div>
           <nav className="app-nav">
             <a href="#" className="active">Broneerimine</a>
+            <button
+              className="mobile-filter-toggle"
+              onClick={() => setFiltersOpen(o => !o)}
+            >
+              <span className="material-symbols-outlined">tune</span>
+            </button>
           </nav>
         </div>
       </header>
 
       {/* Filter Sidebar */}
-      <FilterPanel
-        filters={filters}
-        onChange={setFilters}
-        onSearch={handleSearch}
-        loading={loading}
-      />
+      <div className={`filter-sidebar-wrapper${filtersOpen ? ' open' : ''}`}>
+        <FilterPanel
+          filters={filters}
+          onChange={setFilters}
+          onSearch={() => { handleSearch(); setFiltersOpen(false); }}
+          loading={loading}
+        />
+      </div>
 
       {/* Main: Floor Plan */}
       <main className="main-content">
@@ -246,6 +257,12 @@ function App() {
             recommendations={recommendations}
             onSelect={handleRecommendationClick}
           />
+        ) : searched ? (
+          <div className="empty-state empty-state--no-results">
+            <span className="material-symbols-outlined">search_off</span>
+            <p>Valitud filtritega vabu laudu ei leitud</p>
+            <p className="empty-state-hint">Proovi muuta kuupäeva, kellaaega või seltskonna suurust</p>
+          </div>
         ) : (
           <div className="empty-state">
             <p>Kasuta filtreid ja vajuta &laquo;Otsi laudu&raquo;, et näha soovitusi</p>

@@ -20,8 +20,11 @@ export default function FilterPanel({ filters, onChange, onSearch, loading }) {
     updateFilter('preferences', updated);
   };
 
+  // Minimum selectable date is today
+  const today = new Date().toISOString().split('T')[0];
+
   return (
-    <aside className="filter-sidebar">
+    <div className="filter-sidebar">
       <div className="filter-header">
         <h2>Filtrid</h2>
         <p>Otsi sobivat lauda</p>
@@ -37,6 +40,7 @@ export default function FilterPanel({ filters, onChange, onSearch, loading }) {
           type="date"
           className="filter-input"
           value={filters.date}
+          min={today}
           onChange={e => updateFilter('date', e.target.value)}
         />
       </div>
@@ -139,6 +143,6 @@ export default function FilterPanel({ filters, onChange, onSearch, loading }) {
       >
         {loading ? 'Otsin...' : 'Otsi laudu'}
       </button>
-    </aside>
+    </div>
   );
 }
