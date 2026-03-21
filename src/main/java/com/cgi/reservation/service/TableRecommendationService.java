@@ -7,7 +7,7 @@ import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
-import java.util.Comparator;
+
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -46,8 +46,15 @@ public class TableRecommendationService {
             scored.add(toDTO(table, totalScore, 0, reason));
         }
 
-        // Sort: zone-matching tables first (when zone selected), then by score descending
+        // Sort: preference-matching first, then zone-matching, then by score descending
         scored.sort((a, b) -> {
+            // Preference-matching tables first (when preferences selected)
+            if (preferences != null && !preferences.isEmpty()) {
+                boolean aPref = hasAnyPreference(a, preferences);
+                boolean bPref = hasAnyPreference(b, preferences);
+                if (aPref != bPref) return aPref ? -1 : 1;
+            }
+            // Zone-matching tables next (when zone selected)
             if (zone != null) {
                 boolean aMatch = a.getZone() == zone;
                 boolean bMatch = b.getZone() == zone;
@@ -73,31 +80,53 @@ public class TableRecommendationService {
         return Math.max(score, 0);
     }
 
+    // Playground area center coordinates (matching FloorPlan SVG)
+    private static final double PLAYGROUND_X = 170;
+    private static final double PLAYGROUND_Y = 640;
+    private static final double PLAYGROUND_MAX_DIST = 450;
+
     /**
-     * Preference score (0-25): normalized as (matched / requested) * 25.
-     * If no preferences requested, returns 10 (neutral).
+     * Preference score (0-25): uses proximity-based scoring for spatial preferences.
+     * Tables with the exact flag get full match (1.0), nearby tables get partial credit
+     * based on distance. If no preferences requested, returns 10 (neutral).
      */
     int calculatePreferenceScore(RestaurantTable table, List<String> preferences) {
         if (preferences == null || preferences.isEmpty()) {
             return 10;
         }
 
-        int matched = 0;
+        double totalMatch = 0;
         for (String pref : preferences) {
             switch (pref.toLowerCase()) {
                 case "window", "bywindow", "by_window" -> {
-                    if (table.isByWindow()) matched++;
+                    if (table.isByWindow()) totalMatch += 1.0;
                 }
                 case "quiet", "privacy" -> {
-                    if (table.isQuiet()) matched++;
+                    if (table.isQuiet()) totalMatch += 1.0;
                 }
                 case "playground", "nearplayground", "near_playground" -> {
-                    if (table.isNearPlayground()) matched++;
+                    if (table.isNearPlayground()) {
+                        totalMatch += 1.0;
+                    } else {
+                        totalMatch += playgroundProximity(table);
+                    }
                 }
             }
         }
 
-        return (int) Math.round((double) matched / preferences.size() * 25);
+        return (int) Math.round(totalMatch / preferences.size() * 25);
+    }
+
+    /**
+     * Returns 0.0–0.6 based on distance to playground area.
+     * Closer tables get higher partial credit.
+     */
+    private double playgroundProximity(RestaurantTable table) {
+        double cx = table.getPosX() + table.getWidth() / 2.0;
+        double cy = table.getPosY() + table.getHeight() / 2.0;
+        double dist = Math.sqrt(Math.pow(cx - PLAYGROUND_X, 2) + Math.pow(cy - PLAYGROUND_Y, 2));
+        if (dist >= PLAYGROUND_MAX_DIST) return 0.0;
+        return 0.6 * (1.0 - dist / PLAYGROUND_MAX_DIST);
     }
 
     /**
@@ -109,6 +138,17 @@ public class TableRecommendationService {
             return 10;
         }
         return table.getZone() == zone ? 35 : 0;
+    }
+
+    private boolean hasAnyPreference(TableRecommendationDTO dto, List<String> preferences) {
+        for (String pref : preferences) {
+            switch (pref.toLowerCase()) {
+                case "window", "bywindow", "by_window" -> { if (dto.isByWindow()) return true; }
+                case "quiet", "privacy" -> { if (dto.isQuiet()) return true; }
+                case "playground", "nearplayground", "near_playground" -> { if (dto.isNearPlayground()) return true; }
+            }
+        }
+        return false;
     }
 
     private String buildReason(RestaurantTable table, int partySize, Zone zone, List<String> preferences) {
