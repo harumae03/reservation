@@ -33,27 +33,30 @@ public class ReservationService {
      */
     @Transactional
     public ReservationResponse createReservation(ReservationRequest request) {
-        // Validate input
-        if (request.getCustomerName() == null || request.getCustomerName().isBlank()) {
-            throw new IllegalArgumentException("Kliendi nimi on kohustuslik");
-        }
-        if (request.getPartySize() < 1 || request.getPartySize() > 20) {
-            throw new IllegalArgumentException("Seltskonna suurus peab olema 1-20");
-        }
-        if (request.getDateTime() == null || request.getDateTime().isBefore(LocalDateTime.now())) {
-            throw new IllegalArgumentException("Broneeringu aeg ei tohi olla minevikus");
-        }
-        if (request.getTableId() == null) {
-            throw new IllegalArgumentException("Laua ID on kohustuslik");
-        }
-
         RestaurantTable table = tableRepository.findById(request.getTableId())
                 .orElseThrow(() -> new IllegalArgumentException("Lauda ei leitud ID-ga: " + request.getTableId()));
 
-        // Check for time overlap on this table
-        LocalDateTime start = request.getDateTime();
-        LocalDateTime end = start.plusMinutes(request.getDurationMinutes());
+        // Check party size vs table capacity
+        if (request.getPartySize() > table.getCapacity()) {
+            throw new IllegalArgumentException("Seltskond (" + request.getPartySize()
+                    + ") on suurem kui laua mahutavus (" + table.getCapacity() + ")");
+        }
 
+        // Check restaurant opening hours (11:00–22:00)
+        LocalDateTime start = request.getDateTime();
+        int startHour = start.getHour();
+        LocalDateTime end = start.plusMinutes(request.getDurationMinutes());
+        int endHour = end.getHour();
+        int endMinute = end.getMinute();
+
+        if (startHour < 11 || startHour >= 22) {
+            throw new IllegalArgumentException("Restoran on avatud 11:00–22:00");
+        }
+        if (endHour > 22 || (endHour == 22 && endMinute > 0)) {
+            throw new IllegalArgumentException("Broneering ei tohi ületada sulgemisaega (22:00)");
+        }
+
+        // Check for time overlap on this table
         List<Reservation> overlapping = reservationRepository.findOverlappingForTable(table.getId(), start, end);
         if (!overlapping.isEmpty()) {
             throw new IllegalStateException("Laud on juba broneeritud valitud ajal");

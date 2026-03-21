@@ -3,6 +3,7 @@ package com.cgi.reservation.controller;
 import com.cgi.reservation.dto.ReservationRequest;
 import com.cgi.reservation.dto.ReservationResponse;
 import com.cgi.reservation.service.ReservationService;
+import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
 
@@ -26,7 +27,7 @@ public class ReservationController {
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
-    public ReservationResponse createReservation(@RequestBody ReservationRequest request) {
+    public ReservationResponse createReservation(@Valid @RequestBody ReservationRequest request) {
         return reservationService.createReservation(request);
     }
 

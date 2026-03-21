@@ -47,6 +47,12 @@ public class TableController {
             @RequestParam(defaultValue = "120") int duration,
             @RequestParam(required = false) Zone zone,
             @RequestParam(required = false) List<String> preferences) {
+        if (partySize < 1 || partySize > 20) {
+            throw new IllegalArgumentException("Seltskonna suurus peab olema 1-20");
+        }
+        if (duration < 30 || duration > 360) {
+            throw new IllegalArgumentException("Kestus peab olema 30-360 minutit");
+        }
         return recommendationService.recommend(dateTime, partySize, duration, zone, preferences);
     }
 }
