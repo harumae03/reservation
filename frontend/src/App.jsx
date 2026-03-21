@@ -26,6 +26,11 @@ function getInitialDateTime() {
     } else {
       target.setHours(target.getHours() + 1, 0, 0, 0);
     }
+    // If rounded time is past last slot (21:30), go to next day 11:00
+    if (target.getHours() >= 22) {
+      target.setDate(target.getDate() + 1);
+      target.setHours(11, 0, 0, 0);
+    }
   }
 
   const date = target.toISOString().split('T')[0];

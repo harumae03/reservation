@@ -1,5 +1,12 @@
 import { ZONE_LABELS, PREFERENCE_OPTIONS, DURATION_OPTIONS } from '../../types/index.js';
 
+// Time slots: 11:00–21:30 in 30-minute steps
+const TIME_SLOTS = [];
+for (let h = 11; h <= 21; h++) {
+  TIME_SLOTS.push(`${String(h).padStart(2, '0')}:00`);
+  if (h <= 21) TIME_SLOTS.push(`${String(h).padStart(2, '0')}:30`);
+}
+
 export default function FilterPanel({ filters, onChange, onSearch, loading }) {
   const updateFilter = (key, value) => {
     onChange({ ...filters, [key]: value });
@@ -40,13 +47,15 @@ export default function FilterPanel({ filters, onChange, onSearch, loading }) {
           <span className="material-symbols-outlined">schedule</span>
           Kellaaeg
         </label>
-        <input
-          type="time"
-          className="filter-input"
+        <select
+          className="filter-input filter-select"
           value={filters.time}
-          step="1800"
           onChange={e => updateFilter('time', e.target.value)}
-        />
+        >
+          {TIME_SLOTS.map(t => (
+            <option key={t} value={t}>{t}</option>
+          ))}
+        </select>
       </div>
 
       {/* Party Size */}
