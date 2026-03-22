@@ -1,16 +1,16 @@
 package com.cgi.reservation.dto;
 
-import jakarta.validation.constraints.Max;
-import jakarta.validation.constraints.Min;
+import jakarta.validation.constraints.DecimalMax;
+import jakarta.validation.constraints.DecimalMin;
 
 public class TablePositionUpdateDTO {
 
-    @Min(value = 0, message = "posX peab olema vähemalt 0")
-    @Max(value = 1040, message = "posX ei tohi ületada 1040")
+    @DecimalMin(value = "0", message = "posX peab olema vähemalt 0")
+    @DecimalMax(value = "1040", message = "posX ei tohi ületada 1040")
     private double posX;
 
-    @Min(value = 0, message = "posY peab olema vähemalt 0")
-    @Max(value = 770, message = "posY ei tohi ületada 770")
+    @DecimalMin(value = "0", message = "posY peab olema vähemalt 0")
+    @DecimalMax(value = "770", message = "posY ei tohi ületada 770")
     private double posY;
 
     public TablePositionUpdateDTO() {}
