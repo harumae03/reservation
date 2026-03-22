@@ -12,6 +12,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -50,15 +51,27 @@ public class ReservationService {
             throw new IllegalArgumentException("Broneering ei tohi ületada sulgemisaega (22:00)");
         }
 
-        // Book each table
-        Reservation firstReservation = null;
+        // Load all tables and validate capacity before booking
+        List<RestaurantTable> tablesToBook = new ArrayList<>();
         int totalCapacity = 0;
 
         for (Long tableId : idsToBook) {
             RestaurantTable table = tableRepository.findById(tableId)
                     .orElseThrow(() -> new IllegalArgumentException("Lauda ei leitud ID-ga: " + tableId));
+            tablesToBook.add(table);
             totalCapacity += table.getCapacity();
+        }
 
+        // Validate party size vs total capacity (single or merged)
+        if (request.getPartySize() > totalCapacity) {
+            throw new IllegalArgumentException("Seltskond (" + request.getPartySize()
+                    + ") on suurem kui laudade mahutavus (" + totalCapacity + ")");
+        }
+
+        // Book each table
+        Reservation firstReservation = null;
+
+        for (RestaurantTable table : tablesToBook) {
             // Check for time overlap on this table
             List<Reservation> overlapping = reservationRepository.findOverlappingForTable(table.getId(), start, end);
             if (!overlapping.isEmpty()) {
@@ -76,12 +89,6 @@ public class ReservationService {
             reservation = reservationRepository.save(reservation);
 
             if (firstReservation == null) firstReservation = reservation;
-        }
-
-        // Validate party size vs total capacity (single or merged)
-        if (request.getPartySize() > totalCapacity) {
-            throw new IllegalArgumentException("Seltskond (" + request.getPartySize()
-                    + ") on suurem kui laudade mahutavus (" + totalCapacity + ")");
         }
 
         return toResponse(firstReservation);

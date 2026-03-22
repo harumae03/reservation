@@ -73,6 +73,23 @@ export async function fetchDailySpecials() {
   return res.json();
 }
 
+/**
+ * Updates a table's position (admin view).
+ * @param {number} id
+ * @param {number} posX
+ * @param {number} posY
+ * @returns {Promise<import('../types/index.js').RestaurantTable>}
+ */
+export async function updateTablePosition(id, posX, posY) {
+  const res = await fetch(`${API_BASE}/tables/${id}/position`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ posX, posY }),
+  });
+  if (!res.ok) throw await buildError(res);
+  return res.json();
+}
+
 async function buildError(res) {
   try {
     const body = await res.json();

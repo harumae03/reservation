@@ -5,7 +5,7 @@ import FloorPlan from './components/FloorPlan/FloorPlan.jsx';
 import RecommendationList from './components/RecommendationList/RecommendationList.jsx';
 import ReservationForm from './components/ReservationForm/ReservationForm.jsx';
 import DailySpecials from './components/DailySpecials/DailySpecials.jsx';
-import { fetchTableStatuses, fetchRecommendations, createReservation } from './services/api.js';
+import { fetchTableStatuses, fetchRecommendations, createReservation, updateTablePosition } from './services/api.js';
 
 function getInitialDateTime() {
   const now = new Date();
@@ -59,13 +59,14 @@ function App() {
   const [toast, setToast] = useState(null);
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [searched, setSearched] = useState(false);
+  const [adminMode, setAdminMode] = useState(false);
 
   const dateTime = `${filters.date}T${filters.time}:00`;
 
-  // Load initial table statuses
+  // Load table statuses on init and when switching to admin mode
   useEffect(() => {
     loadTableStatuses();
-  }, []);
+  }, [adminMode]);
 
   const loadTableStatuses = useCallback(async () => {
     try {
@@ -111,30 +112,54 @@ function App() {
 
   const handleTableClick = (table) => {
     if (table.status === 'occupied') return;
+    // Prevent booking a table that's too small for the party
+    if (searched && table.capacity < filters.partySize) {
+      setError(`Laud ${table.tableNumber} mahutab ${table.capacity} inimest, aga seltskond on ${filters.partySize}. Kasuta soovitusi laudade liitmiseks.`);
+      return;
+    }
     setSelectedTable(table);
     setShowForm(true);
   };
 
   const handleRecommendationClick = (rec) => {
-    // Find matching table in statuses
-    const table = tableStatuses.find(t => t.id === rec.id);
-    if (table) {
-      setSelectedTable({ ...table, status: 'selected' });
+    if (rec.merged) {
+      // For merged recommendations, select the merged pair
+      setSelectedTable({
+        ...rec,
+        status: 'selected',
+        tableNumber: rec.mergedTableNumbers.join(' + '),
+      });
       setShowForm(true);
+    } else {
+      // Find matching table in statuses
+      const table = tableStatuses.find(t => t.id === rec.id);
+      if (table) {
+        setSelectedTable({ ...table, status: 'selected' });
+        setShowForm(true);
+      }
     }
   };
 
   const handleReservationSubmit = async (formData) => {
     try {
       setLoading(true);
-      await createReservation({
-        tableId: selectedTable.id,
+
+      const reservationData = {
         customerName: formData.customerName,
         partySize: filters.partySize,
         dateTime,
         durationMinutes: filters.duration,
         preferences: filters.preferences.join(',') || null,
-      });
+      };
+
+      // Use tableIds for merged bookings, tableId for single
+      if (selectedTable?.merged && selectedTable?.mergedTableIds) {
+        reservationData.tableIds = selectedTable.mergedTableIds;
+      } else {
+        reservationData.tableId = selectedTable.id;
+      }
+
+      await createReservation(reservationData);
 
       setShowForm(false);
       setSelectedTable(null);
@@ -150,11 +175,41 @@ function App() {
     }
   };
 
+  // Admin drag handler
+  const handleTableDrag = async (tableId, newPosX, newPosY) => {
+    try {
+      await updateTablePosition(tableId, newPosX, newPosY);
+      // Update local state
+      setTableStatuses(prev =>
+        prev.map(t => t.id === tableId ? { ...t, posX: newPosX, posY: newPosY } : t)
+      );
+      setToast('Laua positsioon uuendatud');
+      setTimeout(() => setToast(null), 2000);
+    } catch (err) {
+      setError('Positsiooni uuendamine ebaõnnestus: ' + err.message);
+    }
+  };
+
   // Build map of recommended table IDs -> rank for highlighting
-  const recommendedMap = new Map(recommendations.map(r => [r.id, r.rank]));
+  const recommendedMap = new Map();
+  recommendations.forEach(r => {
+    if (r.merged && r.mergedTableIds) {
+      r.mergedTableIds.forEach(id => recommendedMap.set(id, r.rank));
+    } else {
+      recommendedMap.set(r.id, r.rank);
+    }
+  });
+
+  // Collect merged pairs for connector lines on floor plan
+  const mergedPairs = recommendations
+    .filter(r => r.merged && r.mergedTableIds?.length === 2)
+    .map(r => r.mergedTableIds);
 
   // Merge statuses with recommendation/selection info (including rank)
   const tablesWithVisualStatus = tableStatuses.map(t => {
+    if (selectedTable?.merged && selectedTable?.mergedTableIds?.includes(t.id)) {
+      return { ...t, status: 'selected' };
+    }
     if (selectedTable?.id === t.id) return { ...t, status: 'selected' };
     if (t.status === 'available' && recommendedMap.has(t.id)) {
       return { ...t, status: 'recommended', rank: recommendedMap.get(t.id) };
@@ -169,7 +224,23 @@ function App() {
         <div className="app-header-inner">
           <div className="app-logo">Verdant Bistro</div>
           <nav className="app-nav">
-            <a href="#" className="active">Broneerimine</a>
+            <a
+              href="#"
+              className={!adminMode ? 'active' : ''}
+              onClick={(e) => { e.preventDefault(); setAdminMode(false); }}
+            >
+              Broneerimine
+            </a>
+            <a
+              href="#"
+              className={adminMode ? 'active' : ''}
+              onClick={(e) => { e.preventDefault(); setAdminMode(true); }}
+            >
+              <span className="material-symbols-outlined" style={{ fontSize: '1rem', verticalAlign: 'middle', marginRight: '0.25rem' }}>
+                admin_panel_settings
+              </span>
+              Admin
+            </a>
             <button
               className="mobile-filter-toggle"
               onClick={() => setFiltersOpen(o => !o)}
@@ -180,46 +251,50 @@ function App() {
         </div>
       </header>
 
-      {/* Filter Sidebar */}
-      <div className={`filter-sidebar-wrapper${filtersOpen ? ' open' : ''}`}>
-        <FilterPanel
-          filters={filters}
-          onChange={setFilters}
-          onSearch={() => { handleSearch(); setFiltersOpen(false); }}
-          loading={loading}
-        />
-      </div>
+      {/* Filter Sidebar — hidden in admin mode */}
+      {!adminMode && (
+        <div className={`filter-sidebar-wrapper${filtersOpen ? ' open' : ''}`}>
+          <FilterPanel
+            filters={filters}
+            onChange={setFilters}
+            onSearch={() => { handleSearch(); setFiltersOpen(false); }}
+            loading={loading}
+          />
+        </div>
+      )}
 
       {/* Main: Floor Plan */}
-      <main className="main-content">
+      <main className={`main-content${adminMode ? ' main-content--admin' : ''}`}>
         <div className="floor-plan-header">
           <div>
-            <h1>Saali plaan</h1>
-            <p>Vali sobiv laud restorani plaanilt</p>
+            <h1>{adminMode ? 'Laudade paigutus' : 'Saali plaan'}</h1>
+            <p>{adminMode ? 'Lohista laudu soovitud positsioonile' : 'Vali sobiv laud restorani plaanilt'}</p>
           </div>
-          <div className="legend">
-            <div className="legend-item">
-              <span className="legend-dot legend-dot--available" /> Saadaval
-            </div>
-            <div className="legend-item">
-              <span className="legend-dot legend-dot--occupied" /> Hõivatud
-            </div>
-            {recommendations.length > 0 && (
-              <>
-                <div className="legend-item">
-                  <span className="legend-dot legend-dot--recommended" /> Sobivaimad
-                </div>
-                <div className="legend-item">
-                  <span className="legend-dot legend-dot--other" /> Teised soovitused
-                </div>
-              </>
-            )}
-            {selectedTable && (
+          {!adminMode && (
+            <div className="legend">
               <div className="legend-item">
-                <span className="legend-dot legend-dot--selected" /> Valitud
+                <span className="legend-dot legend-dot--available" /> Saadaval
               </div>
-            )}
-          </div>
+              <div className="legend-item">
+                <span className="legend-dot legend-dot--occupied" /> Hõivatud
+              </div>
+              {recommendations.length > 0 && (
+                <>
+                  <div className="legend-item">
+                    <span className="legend-dot legend-dot--recommended" /> Sobivaimad
+                  </div>
+                  <div className="legend-item">
+                    <span className="legend-dot legend-dot--other" /> Teised soovitused
+                  </div>
+                </>
+              )}
+              {selectedTable && (
+                <div className="legend-item">
+                  <span className="legend-dot legend-dot--selected" /> Valitud
+                </div>
+              )}
+            </div>
+          )}
         </div>
 
         {error && <div className="error-message">{error}</div>}
@@ -233,10 +308,13 @@ function App() {
           <FloorPlan
             tables={tablesWithVisualStatus}
             onTableClick={handleTableClick}
+            mergedPairs={mergedPairs}
+            adminMode={adminMode}
+            onTableDrag={handleTableDrag}
           />
         )}
 
-        {selectedTable && !showForm && (
+        {selectedTable && !showForm && !adminMode && (
           <div className="status-bar">
             <div className="status-bar-icon">
               <span className="material-symbols-outlined">info</span>
@@ -249,27 +327,29 @@ function App() {
         )}
       </main>
 
-      {/* Right Sidebar: Recommendations */}
-      <aside className="recommendations-panel">
-        <h3>Soovitused</h3>
-        {recommendations.length > 0 ? (
-          <RecommendationList
-            recommendations={recommendations}
-            onSelect={handleRecommendationClick}
-          />
-        ) : searched ? (
-          <div className="empty-state empty-state--no-results">
-            <span className="material-symbols-outlined">search_off</span>
-            <p>Valitud filtritega vabu laudu ei leitud</p>
-            <p className="empty-state-hint">Proovi muuta kuupäeva, kellaaega või seltskonna suurust</p>
-          </div>
-        ) : (
-          <div className="empty-state">
-            <p>Kasuta filtreid ja vajuta &laquo;Otsi laudu&raquo;, et näha soovitusi</p>
-          </div>
-        )}
-        <DailySpecials />
-      </aside>
+      {/* Right Sidebar: Recommendations — hidden in admin mode */}
+      {!adminMode && (
+        <aside className="recommendations-panel">
+          <h3>Soovitused</h3>
+          {recommendations.length > 0 ? (
+            <RecommendationList
+              recommendations={recommendations}
+              onSelect={handleRecommendationClick}
+            />
+          ) : searched ? (
+            <div className="empty-state empty-state--no-results">
+              <span className="material-symbols-outlined">search_off</span>
+              <p>Valitud filtritega vabu laudu ei leitud</p>
+              <p className="empty-state-hint">Proovi muuta kuupäeva, kellaaega või seltskonna suurust</p>
+            </div>
+          ) : (
+            <div className="empty-state">
+              <p>Kasuta filtreid ja vajuta &laquo;Otsi laudu&raquo;, et näha soovitusi</p>
+            </div>
+          )}
+          <DailySpecials />
+        </aside>
+      )}
 
       {/* Reservation Form Modal */}
       {showForm && selectedTable && (

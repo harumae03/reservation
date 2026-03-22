@@ -6,11 +6,11 @@ const STATUS_COLORS = {
   selected: { fill: '#516356', stroke: '#324338', text: '#eafeed', chair: '#738678', chairStroke: '#324338' },
 };
 
-export default function TableShape({ table, onClick }) {
+export default function TableShape({ table, onClick, adminMode = false, isDragging = false, onPointerDown }) {
   const isTopRecommended = table.status === 'recommended' && table.rank && table.rank <= 3;
   const colorKey = isTopRecommended ? 'recommended_top' : table.status;
   const colors = STATUS_COLORS[colorKey] || STATUS_COLORS.available;
-  const isClickable = table.status !== 'occupied';
+  const isClickable = !adminMode && table.status !== 'occupied';
   const isHighlighted = table.status === 'recommended' || table.status === 'selected';
   const isOccupied = table.status === 'occupied';
 
@@ -22,7 +22,11 @@ export default function TableShape({ table, onClick }) {
   return (
     <g
       onClick={isClickable ? onClick : undefined}
-      style={{ cursor: isClickable ? 'pointer' : 'default', opacity: isOccupied ? 0.7 : 1 }}
+      onPointerDown={onPointerDown}
+      style={{
+        cursor: adminMode ? (isDragging ? 'grabbing' : 'grab') : (isClickable ? 'pointer' : 'default'),
+        opacity: isOccupied && !adminMode ? 0.7 : 1,
+      }}
       role={isClickable ? 'button' : undefined}
       tabIndex={isClickable ? 0 : undefined}
     >
@@ -143,8 +147,56 @@ export default function TableShape({ table, onClick }) {
           </text>
         </g>
       )}
+
+      {/* Admin mode: reservation info tooltip for occupied tables */}
+      {adminMode && isOccupied && table.customerName && (
+        <g>
+          <rect
+            x={cx - 55}
+            y={table.posY + table.height + 18}
+            width={110}
+            height={36}
+            rx={6}
+            fill="#2c352e"
+            opacity={0.9}
+          />
+          {/* Arrow pointing up */}
+          <polygon
+            points={`${cx - 5},${table.posY + table.height + 18} ${cx + 5},${table.posY + table.height + 18} ${cx},${table.posY + table.height + 13}`}
+            fill="#2c352e"
+            opacity={0.9}
+          />
+          <text
+            x={cx}
+            y={table.posY + table.height + 32}
+            textAnchor="middle"
+            fill="#eafeed"
+            fontSize={8}
+            fontWeight={600}
+            fontFamily="Inter, sans-serif"
+          >
+            {table.customerName}
+          </text>
+          <text
+            x={cx}
+            y={table.posY + table.height + 44}
+            textAnchor="middle"
+            fill="#abb4ab"
+            fontSize={7}
+            fontFamily="Inter, sans-serif"
+          >
+            {formatTime(table.reservationStart)}–{formatTime(table.reservationEnd)} · {table.partySize} in.
+          </text>
+        </g>
+      )}
     </g>
   );
+}
+
+function formatTime(isoString) {
+  if (!isoString) return '';
+  const d = new Date(isoString);
+  return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
 }
 
 function generateChairs(table) {

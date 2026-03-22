@@ -23,7 +23,12 @@ export default function RecommendationList({ recommendations, onSelect }) {
             )}
           </div>
 
-          <h4>Laud {rec.tableNumber} — {ZONE_LABELS[rec.zone] || rec.zone}</h4>
+          <h4>
+            {rec.merged
+              ? `Laud ${rec.mergedTableNumbers.join(' + ')} (liidus)`
+              : `Laud ${rec.tableNumber}`}
+            {' — '}{ZONE_LABELS[rec.zone] || rec.zone}
+          </h4>
           <p>{rec.reason}</p>
           <p style={{ marginTop: '0.25rem', fontSize: '0.75rem', color: 'var(--outline)' }}>
             {rec.capacity} kohta

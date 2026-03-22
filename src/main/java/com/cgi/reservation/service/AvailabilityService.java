@@ -10,6 +10,7 @@ import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -51,12 +52,26 @@ public class AvailabilityService {
         List<Reservation> overlapping = reservationRepository.findOverlapping(
                 dateTime, end, ReservationStatus.CONFIRMED.name());
 
-        Set<Long> occupiedTableIds = overlapping.stream()
-                .map(r -> r.getTable().getId())
-                .collect(Collectors.toSet());
+        // Map table ID -> reservation for occupied tables
+        Map<Long, Reservation> occupiedMap = overlapping.stream()
+                .collect(Collectors.toMap(
+                        r -> r.getTable().getId(),
+                        r -> r,
+                        (a, b) -> a // if multiple reservations, keep first
+                ));
 
         return tableRepository.findAll().stream()
-                .map(table -> toDTO(table, occupiedTableIds.contains(table.getId()) ? "occupied" : "available"))
+                .map(table -> {
+                    Reservation res = occupiedMap.get(table.getId());
+                    TableWithStatusDTO dto = toDTO(table, res != null ? "occupied" : "available");
+                    if (res != null) {
+                        dto.setCustomerName(res.getCustomerName());
+                        dto.setReservationStart(res.getStartTime());
+                        dto.setReservationEnd(res.getEndTime());
+                        dto.setPartySize(res.getPartySize());
+                    }
+                    return dto;
+                })
                 .collect(Collectors.toList());
     }
 

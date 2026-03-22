@@ -32,7 +32,7 @@
  */
 
 /**
- * @typedef {RestaurantTable & { score: number, rank: number, reason: string }} TableRecommendation
+ * @typedef {RestaurantTable & { score: number, rank: number, reason: string, merged?: boolean, mergedTableIds?: number[], mergedTableNumbers?: number[] }} TableRecommendation
  */
 
 /**

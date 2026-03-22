@@ -69,7 +69,7 @@ export default function FilterPanel({ filters, onChange, onSearch, loading }) {
           Seltskonna suurus
         </label>
         <div className="party-size-group">
-          {[1, 2, 3, 4, 5, 6, 7, 8].map(n => (
+          {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].map(n => (
             <button
               key={n}
               className={`party-size-btn${filters.partySize === n ? ' active' : ''}`}

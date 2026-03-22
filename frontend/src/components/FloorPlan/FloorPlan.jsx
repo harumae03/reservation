@@ -1,3 +1,4 @@
+import React, { useState, useCallback } from 'react';
 import TableShape from './TableShape.jsx';
 
 const ZONE_AREAS = [
@@ -8,13 +9,77 @@ const ZONE_AREAS = [
   { zone: 'PRIVATE_ROOM', label: 'Privaatruum', x: 600, y: 510, width: 380, height: 230, fill: '#fce4ec', stroke: '#f48fb1', opacity: 0.25, labelColor: '#ad1457' },
 ];
 
-export default function FloorPlan({ tables, onTableClick }) {
+function clientToSVG(svg, clientX, clientY) {
+  const pt = svg.createSVGPoint();
+  pt.x = clientX;
+  pt.y = clientY;
+  return pt.matrixTransform(svg.getScreenCTM().inverse());
+}
+
+export default function FloorPlan({ tables, onTableClick, mergedPairs = [], adminMode = false, onTableDrag }) {
+  const svgRef = React.useRef(null);
+  const [dragState, setDragState] = useState(null);
+
+  const handlePointerDown = useCallback((e, table) => {
+    if (!adminMode || !svgRef.current) return;
+    e.preventDefault();
+    const svg = svgRef.current;
+    const pt = clientToSVG(svg, e.clientX, e.clientY);
+    setDragState({
+      tableId: table.id,
+      offsetX: pt.x - table.posX,
+      offsetY: pt.y - table.posY,
+      currentX: table.posX,
+      currentY: table.posY,
+    });
+    svg.setPointerCapture?.(e.pointerId);
+  }, [adminMode]);
+
+  const handlePointerMove = useCallback((e) => {
+    if (!dragState || !svgRef.current) return;
+    const pt = clientToSVG(svgRef.current, e.clientX, e.clientY);
+    setDragState(prev => ({
+      ...prev,
+      currentX: Math.max(0, Math.min(1040, pt.x - prev.offsetX)),
+      currentY: Math.max(0, Math.min(770, pt.y - prev.offsetY)),
+    }));
+  }, [dragState]);
+
+  const handlePointerUp = useCallback(() => {
+    if (!dragState) return;
+    if (onTableDrag) {
+      onTableDrag(dragState.tableId, dragState.currentX, dragState.currentY);
+    }
+    setDragState(null);
+  }, [dragState, onTableDrag]);
+
+  // Build a lookup for tables by ID (for merged connector lines)
+  const tableMap = new Map(tables.map(t => [t.id, t]));
+
+  // Apply drag offset to the dragged table
+  const displayTables = tables.map(t => {
+    if (dragState && t.id === dragState.tableId) {
+      return { ...t, posX: dragState.currentX, posY: dragState.currentY };
+    }
+    return t;
+  });
+
   return (
     <div className="floor-plan-container">
+      {adminMode && (
+        <div className="admin-banner">
+          <span className="material-symbols-outlined">admin_panel_settings</span>
+          Administraatori vaade — lohista laudu paigutuse muutmiseks
+        </div>
+      )}
       <svg
-        className="floor-plan-svg"
+        ref={svgRef}
+        className={`floor-plan-svg${adminMode ? ' admin-mode' : ''}`}
         viewBox="0 0 1040 770"
         preserveAspectRatio="xMidYMid meet"
+        onPointerMove={adminMode ? handlePointerMove : undefined}
+        onPointerUp={adminMode ? handlePointerUp : undefined}
+        onPointerLeave={adminMode ? handlePointerUp : undefined}
       >
         {/* Zone backgrounds */}
         {ZONE_AREAS.map((area, i) => (
@@ -64,12 +129,37 @@ export default function FloorPlan({ tables, onTableClick }) {
           <text x={133} y={648} fill="#546536" fontSize={9} fontFamily="Inter, sans-serif">Mängunurk</text>
         </g>
 
+        {/* Merged table connector lines */}
+        {mergedPairs.map((pair, i) => {
+          const t1 = tableMap.get(pair[0]);
+          const t2 = tableMap.get(pair[1]);
+          if (!t1 || !t2) return null;
+          const cx1 = t1.posX + t1.width / 2;
+          const cy1 = t1.posY + t1.height / 2;
+          const cx2 = t2.posX + t2.width / 2;
+          const cy2 = t2.posY + t2.height / 2;
+          return (
+            <line
+              key={`merge-${i}`}
+              x1={cx1} y1={cy1}
+              x2={cx2} y2={cy2}
+              stroke="#e6a54a"
+              strokeWidth={3}
+              strokeDasharray="8 4"
+              opacity={0.7}
+            />
+          );
+        })}
+
         {/* Tables */}
-        {tables.map(table => (
+        {displayTables.map(table => (
           <TableShape
             key={table.id}
             table={table}
-            onClick={() => onTableClick(table)}
+            onClick={() => !adminMode && onTableClick(table)}
+            adminMode={adminMode}
+            isDragging={dragState?.tableId === table.id}
+            onPointerDown={adminMode ? (e) => handlePointerDown(e, table) : undefined}
           />
         ))}
       </svg>

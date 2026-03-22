@@ -2,6 +2,8 @@ package com.cgi.reservation.dto;
 
 import com.cgi.reservation.model.Zone;
 
+import java.time.LocalDateTime;
+
 public class TableWithStatusDTO {
 
     private Long id;
@@ -16,6 +18,12 @@ public class TableWithStatusDTO {
     private boolean quiet;
     private boolean nearPlayground;
     private String status; // "available" or "occupied"
+
+    // Reservation details (populated when occupied)
+    private String customerName;
+    private LocalDateTime reservationStart;
+    private LocalDateTime reservationEnd;
+    private int partySize;
 
     public TableWithStatusDTO() {}
 
@@ -72,4 +80,16 @@ public class TableWithStatusDTO {
 
     public String getStatus() { return status; }
     public void setStatus(String status) { this.status = status; }
+
+    public String getCustomerName() { return customerName; }
+    public void setCustomerName(String customerName) { this.customerName = customerName; }
+
+    public LocalDateTime getReservationStart() { return reservationStart; }
+    public void setReservationStart(LocalDateTime reservationStart) { this.reservationStart = reservationStart; }
+
+    public LocalDateTime getReservationEnd() { return reservationEnd; }
+    public void setReservationEnd(LocalDateTime reservationEnd) { this.reservationEnd = reservationEnd; }
+
+    public int getPartySize() { return partySize; }
+    public void setPartySize(int partySize) { this.partySize = partySize; }
 }

@@ -39,7 +39,11 @@ export default function ReservationForm({ table, filters, onSubmit, onClose }) {
               <span className="material-symbols-outlined">table_restaurant</span>
               Laud
             </span>
-            <span className="value">Laud {table.tableNumber}</span>
+            <span className="value">
+              {table.merged
+                ? `Laudade ${table.mergedTableNumbers.join(' + ')} liidus`
+                : `Laud ${table.tableNumber}`}
+            </span>
           </div>
           <div className="form-table-info-item">
             <span className="label">
