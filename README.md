@@ -179,7 +179,7 @@ reservation/
 | `DELETE` | `/api/reservations/{id}` | Tühista broneering |
 | `GET` | `/api/reservations?date=` | Broneeringud kuupäeva järgi |
 | `PUT` | `/api/tables/{id}/position` | Uuenda laua positsiooni (admin) |
-| `GET` | `/api/meals/daily-specials` | TheMealDB päevapraad |
+| `GET` | `/api/daily-specials` | TheMealDB päevapraad |
 
 
 ---
@@ -243,7 +243,7 @@ Töö toimus kolmel päeval. Commitide ajalugu peegeldab arengut samm-sammult.
 | Visuaalne saali plaan | ✅ | SVG interaktiivne plaan, hõivatud vs saadaval vs soovitatud |
 | Juhuslikud broneeringud | ✅ | DataSeeder genereerib 10–15 broneeringut igal käivitusel |
 | Spring Boot + viimane Java LTS | ✅ | Spring Boot 4.0.4, Java 25 |
-| Versioonikontroll (Git) | ✅ | 15 committi 3 päeva jooksul |
+| Versioonikontroll (Git) | ✅ | Commitide ajalugu peegeldab samm-sammulist arengut |
 | Keskmine külastuse aeg | ✅ | Kasutaja valib kestuse, saadavus arvestab sellega |
 | Dünaamiline laudade liitmine | ✅ | Kõrvuti asuvad lauad liidus suurele seltskonnale |
 | Admin vaade | ✅ | Drag-and-drop paigutus + broneeringu info kuvamine |
