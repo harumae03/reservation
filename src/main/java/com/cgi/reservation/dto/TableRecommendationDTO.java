@@ -2,6 +2,8 @@ package com.cgi.reservation.dto;
 
 import com.cgi.reservation.model.Zone;
 
+import java.util.List;
+
 public class TableRecommendationDTO {
 
     private Long id;
@@ -18,6 +20,11 @@ public class TableRecommendationDTO {
     private int score;
     private int rank;
     private String reason;
+
+    // Merged table fields
+    private boolean merged;
+    private List<Long> mergedTableIds;
+    private List<Integer> mergedTableNumbers;
 
     public TableRecommendationDTO() {}
 
@@ -39,6 +46,7 @@ public class TableRecommendationDTO {
         this.score = score;
         this.rank = rank;
         this.reason = reason;
+        this.merged = false;
     }
 
     public Long getId() { return id; }
@@ -82,4 +90,13 @@ public class TableRecommendationDTO {
 
     public String getReason() { return reason; }
     public void setReason(String reason) { this.reason = reason; }
+
+    public boolean isMerged() { return merged; }
+    public void setMerged(boolean merged) { this.merged = merged; }
+
+    public List<Long> getMergedTableIds() { return mergedTableIds; }
+    public void setMergedTableIds(List<Long> mergedTableIds) { this.mergedTableIds = mergedTableIds; }
+
+    public List<Integer> getMergedTableNumbers() { return mergedTableNumbers; }
+    public void setMergedTableNumbers(List<Integer> mergedTableNumbers) { this.mergedTableNumbers = mergedTableNumbers; }
 }

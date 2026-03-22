@@ -7,7 +7,6 @@ import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
-
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -25,13 +24,16 @@ public class TableRecommendationService {
      * When a zone is selected, matching tables are always ranked above non-matching ones.
      * Returns top recommendations sorted by score descending.
      */
+    // Maximum distance (SVG units) between table centers to consider them adjacent
+    private static final double MERGE_MAX_DISTANCE = 220.0;
+
     public List<TableRecommendationDTO> recommend(LocalDateTime dateTime, int partySize,
                                                    int durationMinutes, Zone zone,
                                                    List<String> preferences) {
-        List<RestaurantTable> available = availabilityService.getAvailableTables(dateTime, durationMinutes);
+        List<RestaurantTable> allAvailable = availabilityService.getAvailableTables(dateTime, durationMinutes);
 
         // Filter out tables that are too small for the party
-        available = available.stream()
+        List<RestaurantTable> available = allAvailable.stream()
                 .filter(t -> t.getCapacity() >= partySize)
                 .collect(Collectors.toList());
 
@@ -44,6 +46,11 @@ public class TableRecommendationService {
             String reason = buildReason(table, partySize, zone, preferences);
 
             scored.add(toDTO(table, totalScore, 0, reason));
+        }
+
+        // If no single table fits, try merging adjacent tables
+        if (scored.isEmpty() && partySize > 1) {
+            scored = recommendMerged(allAvailable, partySize, zone, preferences);
         }
 
         // Sort: preference-matching first, then zone-matching, then by score descending
@@ -69,6 +76,72 @@ public class TableRecommendationService {
         }
 
         return scored;
+    }
+
+    /**
+     * Finds pairs of adjacent, same-zone, available tables whose combined capacity
+     * meets the party size. Used when no single table is large enough.
+     */
+    private List<TableRecommendationDTO> recommendMerged(List<RestaurantTable> available,
+                                                          int partySize, Zone zone,
+                                                          List<String> preferences) {
+        List<TableRecommendationDTO> merged = new ArrayList<>();
+
+        for (int i = 0; i < available.size(); i++) {
+            for (int j = i + 1; j < available.size(); j++) {
+                RestaurantTable t1 = available.get(i);
+                RestaurantTable t2 = available.get(j);
+
+                // Must be same zone
+                if (t1.getZone() != t2.getZone()) continue;
+
+                // Combined capacity must fit the party
+                int combined = t1.getCapacity() + t2.getCapacity();
+                if (combined < partySize) continue;
+
+                // Must be adjacent (close enough to push together)
+                double dist = tableCenterDistance(t1, t2);
+                if (dist > MERGE_MAX_DISTANCE) continue;
+
+                // Score the pair
+                int extra = combined - partySize;
+                int capacityScore = Math.max(40 - (extra * 10), 0);
+                int prefScore = (calculatePreferenceScore(t1, preferences)
+                        + calculatePreferenceScore(t2, preferences)) / 2;
+                int zoneScore = calculateZoneScore(t1, zone);
+                int totalScore = capacityScore + prefScore + zoneScore;
+
+                // Use midpoint position for display
+                double midX = Math.min(t1.getPosX(), t2.getPosX());
+                double midY = Math.min(t1.getPosY(), t2.getPosY());
+
+                String reason = "Liidus: Laud " + t1.getTableNumber() + " + Laud "
+                        + t2.getTableNumber() + " (" + combined + " kohta kokku)";
+
+                TableRecommendationDTO dto = new TableRecommendationDTO(
+                        t1.getId(), t1.getTableNumber(), combined, t1.getZone(),
+                        midX, midY, t1.getWidth(), t1.getHeight(),
+                        t1.isByWindow() || t2.isByWindow(),
+                        t1.isQuiet() || t2.isQuiet(),
+                        t1.isNearPlayground() || t2.isNearPlayground(),
+                        totalScore, 0, reason);
+                dto.setMerged(true);
+                dto.setMergedTableIds(List.of(t1.getId(), t2.getId()));
+                dto.setMergedTableNumbers(List.of(t1.getTableNumber(), t2.getTableNumber()));
+
+                merged.add(dto);
+            }
+        }
+
+        return merged;
+    }
+
+    private double tableCenterDistance(RestaurantTable t1, RestaurantTable t2) {
+        double cx1 = t1.getPosX() + t1.getWidth() / 2.0;
+        double cy1 = t1.getPosY() + t1.getHeight() / 2.0;
+        double cx2 = t2.getPosX() + t2.getWidth() / 2.0;
+        double cy2 = t2.getPosY() + t2.getHeight() / 2.0;
+        return Math.sqrt(Math.pow(cx1 - cx2, 2) + Math.pow(cy1 - cy2, 2));
     }
 
     /**

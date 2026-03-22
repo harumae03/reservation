@@ -1,5 +1,6 @@
 package com.cgi.reservation.controller;
 
+import com.cgi.reservation.dto.TablePositionUpdateDTO;
 import com.cgi.reservation.dto.TableRecommendationDTO;
 import com.cgi.reservation.dto.TableWithStatusDTO;
 import com.cgi.reservation.model.RestaurantTable;
@@ -7,6 +8,7 @@ import com.cgi.reservation.model.Zone;
 import com.cgi.reservation.repository.RestaurantTableRepository;
 import com.cgi.reservation.service.AvailabilityService;
 import com.cgi.reservation.service.TableRecommendationService;
+import jakarta.validation.Valid;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDateTime;
@@ -54,5 +56,15 @@ public class TableController {
             throw new IllegalArgumentException("Kestus peab olema 30-360 minutit");
         }
         return recommendationService.recommend(dateTime, partySize, duration, zone, preferences);
+    }
+
+    @PutMapping("/{id}/position")
+    public RestaurantTable updateTablePosition(@PathVariable Long id,
+                                                @Valid @RequestBody TablePositionUpdateDTO dto) {
+        RestaurantTable table = tableRepository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("Lauda ei leitud ID-ga: " + id));
+        table.setPosX(dto.getPosX());
+        table.setPosY(dto.getPosY());
+        return tableRepository.save(table);
     }
 }

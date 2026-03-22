@@ -33,16 +33,10 @@ public class ReservationService {
      */
     @Transactional
     public ReservationResponse createReservation(ReservationRequest request) {
-        RestaurantTable table = tableRepository.findById(request.getTableId())
-                .orElseThrow(() -> new IllegalArgumentException("Lauda ei leitud ID-ga: " + request.getTableId()));
+        // Determine which table IDs to book
+        List<Long> idsToBook = resolveTableIds(request);
 
-        // Check party size vs table capacity
-        if (request.getPartySize() > table.getCapacity()) {
-            throw new IllegalArgumentException("Seltskond (" + request.getPartySize()
-                    + ") on suurem kui laua mahutavus (" + table.getCapacity() + ")");
-        }
-
-        // Check restaurant opening hours (11:00–22:00)
+        // Validate opening hours once
         LocalDateTime start = request.getDateTime();
         int startHour = start.getHour();
         LocalDateTime end = start.plusMinutes(request.getDurationMinutes());
@@ -56,23 +50,51 @@ public class ReservationService {
             throw new IllegalArgumentException("Broneering ei tohi ületada sulgemisaega (22:00)");
         }
 
-        // Check for time overlap on this table
-        List<Reservation> overlapping = reservationRepository.findOverlappingForTable(table.getId(), start, end);
-        if (!overlapping.isEmpty()) {
-            throw new IllegalStateException("Laud on juba broneeritud valitud ajal");
+        // Book each table
+        Reservation firstReservation = null;
+        int totalCapacity = 0;
+
+        for (Long tableId : idsToBook) {
+            RestaurantTable table = tableRepository.findById(tableId)
+                    .orElseThrow(() -> new IllegalArgumentException("Lauda ei leitud ID-ga: " + tableId));
+            totalCapacity += table.getCapacity();
+
+            // Check for time overlap on this table
+            List<Reservation> overlapping = reservationRepository.findOverlappingForTable(table.getId(), start, end);
+            if (!overlapping.isEmpty()) {
+                throw new IllegalStateException("Laud " + table.getTableNumber() + " on juba broneeritud valitud ajal");
+            }
+
+            Reservation reservation = new Reservation(
+                    table,
+                    request.getCustomerName().trim(),
+                    request.getPartySize(),
+                    start,
+                    request.getDurationMinutes(),
+                    request.getPreferences()
+            );
+            reservation = reservationRepository.save(reservation);
+
+            if (firstReservation == null) firstReservation = reservation;
         }
 
-        Reservation reservation = new Reservation(
-                table,
-                request.getCustomerName().trim(),
-                request.getPartySize(),
-                start,
-                request.getDurationMinutes(),
-                request.getPreferences()
-        );
+        // Validate party size vs total capacity (single or merged)
+        if (request.getPartySize() > totalCapacity) {
+            throw new IllegalArgumentException("Seltskond (" + request.getPartySize()
+                    + ") on suurem kui laudade mahutavus (" + totalCapacity + ")");
+        }
 
-        reservation = reservationRepository.save(reservation);
-        return toResponse(reservation);
+        return toResponse(firstReservation);
+    }
+
+    private List<Long> resolveTableIds(ReservationRequest request) {
+        if (request.getTableIds() != null && !request.getTableIds().isEmpty()) {
+            return request.getTableIds();
+        }
+        if (request.getTableId() != null) {
+            return List.of(request.getTableId());
+        }
+        throw new IllegalArgumentException("Laua ID on kohustuslik");
     }
 
     /**

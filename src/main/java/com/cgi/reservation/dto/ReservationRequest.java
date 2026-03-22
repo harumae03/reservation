@@ -2,11 +2,14 @@ package com.cgi.reservation.dto;
 
 import jakarta.validation.constraints.*;
 import java.time.LocalDateTime;
+import java.util.List;
 
 public class ReservationRequest {
 
-    @NotNull(message = "Laua ID on kohustuslik")
     private Long tableId;
+
+    // For merged table bookings — list of table IDs to reserve together
+    private List<Long> tableIds;
 
     @NotBlank(message = "Kliendi nimi on kohustuslik")
     private String customerName;
@@ -44,4 +47,7 @@ public class ReservationRequest {
 
     public String getPreferences() { return preferences; }
     public void setPreferences(String preferences) { this.preferences = preferences; }
+
+    public List<Long> getTableIds() { return tableIds; }
+    public void setTableIds(List<Long> tableIds) { this.tableIds = tableIds; }
 }
